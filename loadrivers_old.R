@@ -1,9 +1,3 @@
-
-
-library(sf)
-library(terra)
-
-
 rivers <- st_read("./ne_10m_rivers_lake_centerlines/ne_10m_rivers_lake_centerlines.shp")
 rivers_proj <- st_transform(rivers, crs(terrain_class))
 

@@ -1,6 +1,3 @@
-library(terra)
-library(png)
-
 # Extract channels (0-255)
 r_chan <- values(rgba_stack$red)
 g_chan <- values(rgba_stack$green)

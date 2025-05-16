@@ -1,6 +1,7 @@
 library(elevatr)
 library(terra)
 library(sf)
+library(png)
 
 xmin <- 24     # longitude min
 xmax <- 45     # longitude max
