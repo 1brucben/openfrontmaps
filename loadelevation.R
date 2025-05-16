@@ -1,14 +1,12 @@
-# List of required packages
-required_packages <- c("terra", "sf", "elevatr", "png")
+required <- c("terra", "sf", "elevatr", "png")
 
-# Install any missing packages
-missing_packages <- required_packages[!(required_packages %in% installed.packages()[, "Package"])]
-if (length(missing_packages)) {
-  install.packages(missing_packages)
+for (pkg in required) {
+  if (!requireNamespace(pkg, quietly = TRUE)) {
+    install.packages(pkg, type = "binary")
+  }
+  library(pkg, character.only = TRUE)
 }
 
-# Load all packages
-lapply(required_packages, library, character.only = TRUE)
 
 
 xmin <- 24     # longitude min
