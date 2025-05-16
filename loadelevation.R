@@ -1,12 +1,13 @@
-pkgs <- c("terra", "sf", "elevatr", "png", "progress","future")
+pkgs <- c("terra", "sf", "elevatr", "png")
 
 install_if_missing <- function(p) {
   if (!requireNamespace(p, quietly = TRUE)) {
-    install.packages(p,type="binary")
+    install.packages(p,dependencies=TRUE,type="binary")
   }
 }
 
 invisible(lapply(pkgs, install_if_missing))
+invisible(lapply(pkgs, library, character.only = TRUE))
 
 
 
@@ -31,11 +32,11 @@ region_sf <- st_sf(geometry = region_geom)
 
 
 
-elev_raster <- get_elev_raster(locations = region_sf, z = zoom, clip = "bbox")
+#elev_raster <- get_elev_raster(locations = region_sf, z = zoom, clip = "bbox")
 
-writeRaster(rast(elev_raster), "elevation_raw.tif", overwrite = TRUE)
-elev_terra <- rast(elev_raster)
- #elev_terra <- rast("elevation_raw.tif")
+#writeRaster(rast(elev_raster), "elevation_raw.tif", overwrite = TRUE)
+#elev_terra <- rast(elev_raster)
+ elev_terra <- rast("elevation_raw.tif")
 
 # Mean latitude (for scaling longitude degrees)
 mean_lat <- (ymin + ymax) / 2
