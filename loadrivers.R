@@ -1,4 +1,3 @@
-
 # Read rivers shapefile and project to match elevation raster CRS (in meters)
 rivers <- st_read("./ne_10m_rivers_lake_centerlines/ne_10m_rivers_lake_centerlines.shp")
 rivers_proj <- st_transform(rivers, crs(elev_projected))
@@ -10,7 +9,7 @@ rivers_clipped <- st_intersection(rivers_proj, st_as_sf(terrain_extent))
 # Separate by geometry type
 geom_type <- st_geometry_type(rivers_clipped)
 lines_only <- rivers_clipped[geom_type %in% c("LINESTRING", "MULTILINESTRING"), ]
-others     <- rivers_clipped[geom_type %in% c("POLYGON", "MULTIPOLYGON", "POINT", "MULTIPOINT"), ]
+others <- rivers_clipped[geom_type %in% c("POLYGON", "MULTIPOLYGON", "POINT", "MULTIPOINT"), ]
 
 # Compute buffer distances based on river importance (scalerank)
 scalerank <- as.numeric(lines_only$scalerank)
@@ -44,7 +43,7 @@ river_mask <- river_rast == 1
 blue <- blue_base
 alpha <- alpha_base
 blue[river_mask[]] <- 106
-alpha[river_mask[]] <- 0  # transparent rivers (use 255 if you want them opaque)
+alpha[river_mask[]] <- 0 # transparent rivers (use 255 if you want them opaque)
 
 # Assemble RGBA image stack
 r_rast <- setValues(rast(terrain_class), 0)

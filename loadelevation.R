@@ -9,12 +9,12 @@ for (pkg in required) {
 
 
 
-xmin <- 24     # longitude min
-xmax <- 45     # longitude max
-ymin <- 39     # latitude min
-ymax <- 48     # latitude max
+xmin <- 24 # longitude min
+xmax <- 45 # longitude max
+ymin <- 39 # latitude min
+ymax <- 48 # latitude max
 
-total_pixels <- 4e6  # e.g. 4 million
+total_pixels <- 4e6 # e.g. 4 million
 zoom <- 7
 output_file <- "terrain_map.png"
 
@@ -33,12 +33,12 @@ elev_raster <- get_elev_raster(locations = region_sf, z = zoom, clip = "bbox")
 
 writeRaster(rast(elev_raster), "elevation_raw.tif", overwrite = TRUE)
 elev_terra <- rast(elev_raster)
-#elev_terra <- rast("elevation_raw.tif")
+# elev_terra <- rast("elevation_raw.tif")
 
 # Mean latitude (for scaling longitude degrees)
 mean_lat <- (ymin + ymax) / 2
-lat_km <- 111  # 1 degree latitude ~111 km
-lon_km <- 111 * cos(mean_lat * pi / 180)  # scaled for latitude
+lat_km <- 111 # 1 degree latitude ~111 km
+lon_km <- 111 * cos(mean_lat * pi / 180) # scaled for latitude
 
 # Real-world width and height in km
 width_km <- (xmax - xmin) * lon_km
@@ -67,10 +67,10 @@ elev_resampled <- resample(elev_terra, target_rast, method = "bilinear")
 # Define Lambert Conformal Conic projection centered on the region
 lcc_proj <- paste0(
   "+proj=lcc",
-  " +lat_1=", ymin,   # first standard parallel
-  " +lat_2=", ymax,   # second standard parallel
-  " +lat_0=", (ymin + ymax)/2,  # latitude of origin
-  " +lon_0=", (xmin + xmax)/2,  # central meridian
+  " +lat_1=", ymin, # first standard parallel
+  " +lat_2=", ymax, # second standard parallel
+  " +lat_0=", (ymin + ymax) / 2, # latitude of origin
+  " +lon_0=", (xmin + xmax) / 2, # central meridian
   " +datum=WGS84 +units=m +no_defs"
 )
 
@@ -83,9 +83,9 @@ slope_rast <- terrain(elev_projected, v = "slope", unit = "degrees")
 
 # start with terrain based on elevation
 terrain_class <- classify(elev_resampled, matrix(c(
-  -Inf, 50, 1,      # Plains
-  50, 2000, 2,       # Highlands
-  2000, Inf, 3        # Mountains
+  -Inf, 50, 1, # Plains
+  50, 2000, 2, # Highlands
+  2000, Inf, 3 # Mountains
 ), ncol = 3, byrow = TRUE))
 
 # Project slope back to match terrain_class grid
@@ -110,23 +110,23 @@ alpha <- numeric(ncell(terrain_class))
 for (i in seq_along(tc_vals)) {
   t <- tc_vals[i]
   elev <- elev_vals[i]
-  
+
   if (is.na(t) || is.na(elev)) {
     mag[i] <- 0
     blue[i] <- 0
     alpha[i] <- 0
     next
   }
-  
+
   if (t == 0) {
     # Water
     blue[i] <- 106
     alpha[i] <- 0
     next
   }
-  
+
   alpha[i] <- 255
-  
+
   if (t == 1) {
     # Plains: 0–200 m → mag 2–8
     mag[i] <- 1 + 7 * min(1, elev / 200)
@@ -137,7 +137,7 @@ for (i in seq_along(tc_vals)) {
     # Mountains: 1000–3000 m → mag 22–28
     mag[i] <- 21 + 7 * min(1, (elev - 1000) / 2000)
   }
-  
+
   blue[i] <- 140 + 2 * mag[i]
 }
 
