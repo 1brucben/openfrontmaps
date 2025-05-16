@@ -27,6 +27,7 @@ install.packages(c("terra", "sf", "elevatr", "png"))
 ## Usage
 
 1. Open `loadelevation.R` and input your desired bounding box coordinates and any other parameters.
+  I recommend using https://boundingbox.klokantech.com/ to get coordinates.
 2. Run `loadelevation.R`. This script will:
    - Download and cache the elevation data if needed.
    - Generate the terrain map PNG (`*.png`).
