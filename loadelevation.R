@@ -1,7 +1,15 @@
-library(elevatr)
-library(terra)
-library(sf)
-library(png)
+# List of required packages
+required_packages <- c("terra", "sf", "elevatr", "png")
+
+# Install any missing packages
+missing_packages <- required_packages[!(required_packages %in% installed.packages()[, "Package"])]
+if (length(missing_packages)) {
+  install.packages(missing_packages)
+}
+
+# Load all packages
+lapply(required_packages, library, character.only = TRUE)
+
 
 xmin <- 24     # longitude min
 xmax <- 45     # longitude max
