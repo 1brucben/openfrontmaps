@@ -1,8 +1,8 @@
-pkgs <- c("terra", "sf", "elevatr", "png", "progress")
+pkgs <- c("terra", "sf", "elevatr", "png", "progress","future")
 
 install_if_missing <- function(p) {
   if (!requireNamespace(p, quietly = TRUE)) {
-    install.packages(p)
+    install.packages(p,type="binary")
   }
 }
 
@@ -11,10 +11,10 @@ invisible(lapply(pkgs, install_if_missing))
 
 
 
-xmin <- -10.59 # longitude min
-xmax <- 3.6 # longitude max
-ymin <- 34.41 # latitude min
-ymax <- 44.98 # latitude max
+xmin <- -126.3 # longitude min
+xmax <- -65.5 # longitude max
+ymin <- 24.4 # latitude min
+ymax <- 50.0 # latitude max
 
 total_pixels <- 4e6 # e.g. 4 million
 zoom <- 7
@@ -35,7 +35,7 @@ elev_raster <- get_elev_raster(locations = region_sf, z = zoom, clip = "bbox")
 
 writeRaster(rast(elev_raster), "elevation_raw.tif", overwrite = TRUE)
 elev_terra <- rast(elev_raster)
-# elev_terra <- rast("elevation_raw.tif")
+ #elev_terra <- rast("elevation_raw.tif")
 
 # Mean latitude (for scaling longitude degrees)
 mean_lat <- (ymin + ymax) / 2
@@ -85,20 +85,20 @@ slope_rast <- terrain(elev_projected, v = "slope", unit = "degrees")
 
 # start with terrain based on elevation
 terrain_class <- classify(elev_resampled, matrix(c(
-  -Inf, 50, 1, # Plains
-  50, 2000, 2, # Highlands
-  2000, Inf, 3 # Mountains
+  -Inf, 500, 1, # Plains
+  500, 2100, 2, # Highlands
+  2100, Inf, 3 # Mountains
 ), ncol = 3, byrow = TRUE))
 
 # Project slope back to match terrain_class grid
 slope_back <- project(slope_rast, terrain_class)
 # Now safe to use in logical assignment
-terrain_class[slope_back < 0.5 & elev_resampled < 500] <- 1
+terrain_class[slope_back < 5 & elev_resampled < 1000] <- 1
 terrain_class[slope_back < 1.5 & elev_resampled > 500] <- 2
-terrain_class[slope_back > 6] <- 3
+terrain_class[slope_back > 10] <- 3
 
 # Set water where elevation ≤ 0
-terrain_class[elev_resampled <= 0] <- 0
+terrain_class[elev_resampled <= 1] <- 0
 
 # Get raw elevation values
 elev_vals <- values(elev_resampled)
