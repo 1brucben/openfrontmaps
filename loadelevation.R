@@ -1,18 +1,20 @@
-required <- c("terra", "sf", "elevatr", "png")
+pkgs <- c("terra", "sf", "elevatr", "png", "progress")
 
-for (pkg in required) {
-  if (!requireNamespace(pkg, quietly = TRUE)) {
-    install.packages(pkg, type = "binary")
+install_if_missing <- function(p) {
+  if (!requireNamespace(p, quietly = TRUE)) {
+    install.packages(p)
   }
-  library(pkg, character.only = TRUE)
 }
 
+invisible(lapply(pkgs, install_if_missing))
 
 
-xmin <- 24 # longitude min
-xmax <- 45 # longitude max
-ymin <- 39 # latitude min
-ymax <- 48 # latitude max
+
+
+xmin <- -10.59 # longitude min
+xmax <- 3.6 # longitude max
+ymin <- 34.41 # latitude min
+ymax <- 44.98 # latitude max
 
 total_pixels <- 4e6 # e.g. 4 million
 zoom <- 7
@@ -155,5 +157,5 @@ names(rgba_stack) <- c("red", "green", "blue", "alpha")
 blue_base <- blue
 alpha_base <- alpha
 
-source("loadrivers")
-source("terrainpreview")
+source("loadrivers.R")
+source("generatepreview.R")
