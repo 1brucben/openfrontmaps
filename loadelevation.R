@@ -87,16 +87,16 @@ slope_rast <- terrain(elev_projected, v = "slope", unit = "degrees")
 # start with terrain based on elevation
 terrain_class <- classify(elev_resampled, matrix(c(
   -Inf, 500, 1, # Plains
-  500, 2100, 2, # Highlands
-  2100, Inf, 3 # Mountains
+  500, 1900, 2, # Highlands
+  1900, Inf, 3 # Mountains
 ), ncol = 3, byrow = TRUE))
 
 # Project slope back to match terrain_class grid
 slope_back <- project(slope_rast, terrain_class)
 # Now safe to use in logical assignment
-terrain_class[slope_back < 5 & elev_resampled < 1000] <- 1
-terrain_class[slope_back < 1.5 & elev_resampled > 500] <- 2
-terrain_class[slope_back > 10] <- 3
+terrain_class[slope_back < .5 & elev_resampled < 1000] <- 1
+terrain_class[slope_back < 2 & elev_resampled > 500] <- 2
+terrain_class[slope_back > 4] <- 3
 
 # Set water where elevation ≤ 0
 terrain_class[elev_resampled <= 1] <- 0
