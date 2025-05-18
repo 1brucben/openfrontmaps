@@ -9,13 +9,19 @@ install_if_missing <- function(p) {
 invisible(lapply(pkgs, install_if_missing))
 invisible(lapply(pkgs, library, character.only = TRUE))
 
+coord_str <- "165.89,-48.42,179.95,-33.93"
+coords <- as.numeric(strsplit(coord_str, ",")[[1]])
+
+xmin <- coords[1]
+ymin <- coords[2]
+xmax <- coords[3]
+ymax <- coords[4]
 
 
-
-xmin <- -126.3 # longitude min
-xmax <- -65.5 # longitude max
-ymin <- 24.4 # latitude min
-ymax <- 50.0 # latitude max
+xmin <- 165 # longitude min
+xmax <- 179.9 # longitude max
+ymin <- -49.5 # latitude min
+ymax <- -33 # latitude max
 
 total_pixels <- 4e6 # e.g. 4 million
 zoom <- 7
@@ -32,11 +38,12 @@ region_sf <- st_sf(geometry = region_geom)
 
 
 
-#elev_raster <- get_elev_raster(locations = region_sf, z = zoom, clip = "bbox")
+elev_raster <- get_elev_raster(locations = region_sf, z = zoom, clip = "bbox")
 
-#writeRaster(rast(elev_raster), "elevation_raw.tif", overwrite = TRUE)
-#elev_terra <- rast(elev_raster)
- elev_terra <- rast("elevation_raw.tif")
+writeRaster(rast(elev_raster), "elevation_raw.tif", overwrite = TRUE)
+elev_terra <- rast(elev_raster)
+#switch comments to load instead from file
+#elev_terra <- rast("elevation_raw.tif")
 
 # Mean latitude (for scaling longitude degrees)
 mean_lat <- (ymin + ymax) / 2
@@ -67,18 +74,11 @@ target_rast <- rast(nrows = pixel_height, ncols = pixel_width, extent = ext(elev
 # Resample
 elev_resampled <- resample(elev_terra, target_rast, method = "bilinear")
 
-# Define Lambert Conformal Conic projection centered on the region
-lcc_proj <- paste0(
-  "+proj=lcc",
-  " +lat_1=", ymin, # first standard parallel
-  " +lat_2=", ymax, # second standard parallel
-  " +lat_0=", (ymin + ymax) / 2, # latitude of origin
-  " +lon_0=", (xmin + xmax) / 2, # central meridian
-  " +datum=WGS84 +units=m +no_defs"
-)
+# Définir la projection Plate Carrée
+plate_carre_proj <- "+proj=eqc +lat_ts=0 +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"
 
-# Reproject to LCC
-elev_projected <- project(elev_resampled, lcc_proj)
+# Reprojeter les données d'élévation
+elev_projected <- project(elev_terra, plate_carre_proj)
 
 # Now slope calculation will be accurate
 slope_rast <- terrain(elev_projected, v = "slope", unit = "degrees")
@@ -99,7 +99,7 @@ terrain_class[slope_back < 2 & elev_resampled > 500] <- 2
 terrain_class[slope_back > 4] <- 3
 
 # Set water where elevation ≤ 0
-terrain_class[elev_resampled <= 1] <- 0
+#terrain_class[elev_resampled <= 1] <- 0
 
 # Get raw elevation values
 elev_vals <- values(elev_resampled)
