@@ -8,8 +8,8 @@ install_if_missing <- function(p) {
 
 invisible(lapply(pkgs, install_if_missing))
 invisible(lapply(pkgs, library, character.only = TRUE))
-
-coord_str <- "165.89,-48.42,179.95,-33.93"
+start_time <- proc.time()
+coord_str <- "-179.9,-90,179.9,90"
 coords <- as.numeric(strsplit(coord_str, ",")[[1]])
 
 xmin <- coords[1]
@@ -17,14 +17,8 @@ ymin <- coords[2]
 xmax <- coords[3]
 ymax <- coords[4]
 
-
-xmin <- 165 # longitude min
-xmax <- 179.9 # longitude max
-ymin <- -49.5 # latitude min
-ymax <- -33 # latitude max
-
 total_pixels <- 4e6 # e.g. 4 million
-zoom <- 7
+zoom <- 4 # 7 should be fine for most regions... raise if region is really small
 output_file <- "terrain_map.png"
 
 # Define bounding box
@@ -142,6 +136,8 @@ for (i in seq_along(tc_vals)) {
   }
 
   blue[i] <- 140 + 2 * mag[i]
+  blue[i] <- max(0, blue[i])
+
 }
 
 r <- rep(0, length(blue))
@@ -160,3 +156,6 @@ alpha_base <- alpha
 
 source("loadrivers.R")
 source("generatepreview.R")
+end_time <- proc.time()
+elapsed <- end_time - start_time
+cat("Elapsed time (seconds):", elapsed["elapsed"], "\n")
