@@ -136,7 +136,7 @@ for (i in seq_along(tc_vals)) {
   }
 
   blue[i] <- 140 + 2 * mag[i]
-  blue[i] <- max(0, blue[i])
+  #blue[i] <- max(0, blue[i])
 
 }
 
