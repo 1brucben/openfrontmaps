@@ -9,7 +9,7 @@ install_if_missing <- function(p) {
 invisible(lapply(pkgs, install_if_missing))
 invisible(lapply(pkgs, library, character.only = TRUE))
 start_time <- proc.time()
-coord_str <- "-179.9,-90,179.9,90"
+coord_str <- "-172.9,51.0,-130.0,72.1"
 coords <- as.numeric(strsplit(coord_str, ",")[[1]])
 
 xmin <- coords[1]
@@ -18,7 +18,7 @@ xmax <- coords[3]
 ymax <- coords[4]
 
 total_pixels <- 4e6 # e.g. 4 million
-zoom <- 4 # 7 should be fine for most regions... raise if region is really small
+zoom <- 7 # 7 should be fine for most regions... raise if region is really small
 output_file <- "terrain_map.png"
 
 # Define bounding box
@@ -93,7 +93,7 @@ terrain_class[slope_back < 2 & elev_resampled > 500] <- 2
 terrain_class[slope_back > 4] <- 3
 
 # Set water where elevation ≤ 0
-#terrain_class[elev_resampled <= 1] <- 0
+#terrain_class[elev_resampled <= 137] <- 0
 
 # Get raw elevation values
 elev_vals <- values(elev_resampled)
@@ -125,13 +125,13 @@ for (i in seq_along(tc_vals)) {
   alpha[i] <- 255
 
   if (t == 1) {
-    # Plains: 0–200 m → mag 2–8
+    # Plains: 0–200 m → mag 1–9
     mag[i] <- 1 + 7 * min(1, elev / 200)
   } else if (t == 2) {
-    # Highlands: 200–1000 m → mag 12–18
+    # Highlands: 200–1000 m → mag 11–19
     mag[i] <- 11 + 7 * min(1, (elev - 200) / 800)
   } else if (t == 3) {
-    # Mountains: 1000–3000 m → mag 22–28
+    # Mountains: 1000–3000 m → mag 21–29
     mag[i] <- 21 + 7 * min(1, (elev - 1000) / 2000)
   }
 

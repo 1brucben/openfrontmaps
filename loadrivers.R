@@ -10,6 +10,10 @@ lakes_proj <- st_transform(lakes, crs(elev_projected))
 oceans <- st_read("./ne_10m_ocean/ne_10m_ocean.shp")
 oceans_proj <- st_transform(oceans, crs(elev_projected))
 
+# Load and project glaciated areas
+glaciers <- st_read("./ne_10m_glaciated_areas/ne_10m_glaciated_areas.shp")
+glaciers_proj <- st_transform(glaciers, crs(elev_projected))
+
 # Define terrain extent polygon for clipping
 terrain_extent <- as.polygons(ext(elev_projected), crs = crs(elev_projected))
 
@@ -17,6 +21,9 @@ terrain_extent <- as.polygons(ext(elev_projected), crs = crs(elev_projected))
 rivers_clipped <- st_intersection(rivers_proj, st_as_sf(terrain_extent))
 lakes_clipped <- st_intersection(lakes_proj, st_as_sf(terrain_extent))
 oceans_clipped <- st_intersection(oceans_proj, st_as_sf(terrain_extent))
+
+# Clip glaciers to terrain extent
+glaciers_clipped <- st_intersection(glaciers_proj, st_as_sf(terrain_extent))
 
 # Separate rivers lines from other geometries
 geom_type <- st_geometry_type(rivers_clipped)
@@ -67,7 +74,16 @@ river_mask <- river_rast == 1
 blue <- blue_base
 alpha <- alpha_base
 blue[river_mask[]] <- 106
-alpha[river_mask[]] <- 0  # transparent water (change to 255 for opaque)
+alpha[river_mask[]] <- 0  
+
+# Add glaciers as mountains (e.g. darker blue and opaque)
+glacier_vect <- vect(st_transform(glaciers_clipped, crs(terrain_class)))
+glacier_rast <- rasterize(glacier_vect, terrain_class, field = 1, background = 0, touches = TRUE)
+glacier_mask <- glacier_rast == 1
+
+blue[glacier_mask[]] <- 198
+alpha[glacier_mask[]] <- 255
+
 
 # Assemble RGBA stack
 r_rast <- setValues(rast(terrain_class), 0)
