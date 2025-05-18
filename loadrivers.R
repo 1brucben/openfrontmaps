@@ -1,7 +1,7 @@
 # Load and project rivers (lines + other geom) to elevation CRS
-rivers <- st_read("./ne_10m_rivers_lake_centerlines/ne_10m_rivers_lake_centerlines.shp")
-rivers_proj <- st_transform(rivers, crs(elev_projected))
-
+riversmore <- st_read("./ne_10m_rivers_lake_centerlines_scale_rank/ne_10m_rivers_lake_centerlines_scale_rank.shp")
+riversmore <- riversmore[as.numeric(riversmore$scalerank) < 7, ]
+rivers_proj <- st_transform(riversmore, crs(elev_projected))
 # Load and project lakes polygons
 lakes <- st_read("./ne_10m_lakes/ne_10m_lakes.shp")
 lakes_proj <- st_transform(lakes, crs(elev_projected))
@@ -9,7 +9,6 @@ lakes_proj <- st_transform(lakes, crs(elev_projected))
 # Load and project ocean polygons
 oceans <- st_read("./ne_10m_ocean/ne_10m_ocean.shp")
 oceans_proj <- st_transform(oceans, crs(elev_projected))
-
 # Load and project glaciated areas
 glaciers <- st_read("./ne_10m_glaciated_areas/ne_10m_glaciated_areas.shp")
 glaciers_proj <- st_transform(glaciers, crs(elev_projected))
@@ -30,11 +29,10 @@ geom_type <- st_geometry_type(rivers_clipped)
 lines_only <- rivers_clipped[geom_type %in% c("LINESTRING", "MULTILINESTRING"), ]
 others <- rivers_clipped[geom_type %in% c("POLYGON", "MULTIPOLYGON", "POINT", "MULTIPOINT"), ]
 
-# Compute buffer distances for rivers lines by scalerank
-scalerank <- as.numeric(lines_only$scalerank)
-is_major <- !is.na(scalerank) & scalerank <= 4
+# Compute buffer distances based on stroke weight
+strokeweig <- as.numeric(lines_only$strokeweig)
 base_res <- mean(res(elev_projected))
-buffer_distances <- ifelse(is_major, base_res * 0.5, base_res * 0.01)
+buffer_distances <- base_res * (strokeweig / max(strokeweig, na.rm = TRUE)) * 10
 
 # Buffer only line geometries (rivers)
 lines_buffered <- mapply(

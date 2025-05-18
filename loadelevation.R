@@ -9,7 +9,7 @@ install_if_missing <- function(p) {
 invisible(lapply(pkgs, install_if_missing))
 invisible(lapply(pkgs, library, character.only = TRUE))
 start_time <- proc.time()
-coord_str <- "-172.9,51.0,-130.0,72.1"
+coord_str <- "-91.7,-56.6,-31.1,24.1"
 coords <- as.numeric(strsplit(coord_str, ",")[[1]])
 
 xmin <- coords[1]
@@ -17,8 +17,8 @@ ymin <- coords[2]
 xmax <- coords[3]
 ymax <- coords[4]
 
-total_pixels <- 4e6 # e.g. 4 million
-zoom <- 7 # 7 should be fine for most regions... raise if region is really small
+total_pixels <- 4000000 # e.g. 4 million
+zoom <- 6 # 7 should be fine for most regions... raise if region is really small
 output_file <- "terrain_map.png"
 
 # Define bounding box
@@ -68,10 +68,10 @@ target_rast <- rast(nrows = pixel_height, ncols = pixel_width, extent = ext(elev
 # Resample
 elev_resampled <- resample(elev_terra, target_rast, method = "bilinear")
 
-# Définir la projection Plate Carrée
+# Define the projection string for Plate Carrée (Equirectangular) projection
 plate_carre_proj <- "+proj=eqc +lat_ts=0 +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"
 
-# Reprojeter les données d'élévation
+# Project the elevation raster to Plate Carrée
 elev_projected <- project(elev_terra, plate_carre_proj)
 
 # Now slope calculation will be accurate
@@ -80,17 +80,58 @@ slope_rast <- terrain(elev_projected, v = "slope", unit = "degrees")
 
 # start with terrain based on elevation
 terrain_class <- classify(elev_resampled, matrix(c(
-  -Inf, 500, 1, # Plains
-  500, 1900, 2, # Highlands
-  1900, Inf, 3 # Mountains
+  -Inf, 180, 1, # Plains
+  180, 2600, 2, # Highlands
+  2600, Inf, 3 # Mountains
 ), ncol = 3, byrow = TRUE))
+# Count initial classification from elevation
+tc_vals_initial <- values(terrain_class)
+total_land <- sum(!is.na(tc_vals_initial))
+
+initial_counts <- table(tc_vals_initial, useNA = "ifany")
+initial_percents <- round(100 * initial_counts / total_land, 2)
+
+cat("Initial classification (elevation-based):\n")
+print(data.frame(Class = names(initial_counts),
+                 Count = as.vector(initial_counts),
+                 Percent = as.vector(initial_percents)))
+
 
 # Project slope back to match terrain_class grid
 slope_back <- project(slope_rast, terrain_class)
 # Now safe to use in logical assignment
-terrain_class[slope_back < .5 & elev_resampled < 1000] <- 1
-terrain_class[slope_back < 2 & elev_resampled > 500] <- 2
-terrain_class[slope_back > 4] <- 3
+# Track reclassifications
+reclass_counts <- c(rule1 = 0, rule2 = 0, rule3 = 0, rule4 = 0)
+
+# Rule 1
+idx <- which(slope_back[] < .5 & elev_resampled[] < 1000)
+reclass_counts["rule1"] <- sum(terrain_class[][idx] != 1, na.rm = TRUE)
+terrain_class[idx] <- 1
+
+# Rule 2
+idx <- which(slope_back[] < 2 & elev_resampled[] > 2400)
+reclass_counts["rule2"] <- sum(terrain_class[][idx] != 2, na.rm = TRUE)
+terrain_class[idx] <- 2
+
+# Rule 3
+idx <- which(slope_back[] > 4)
+reclass_counts["rule3"] <- sum(terrain_class[][idx] != 3, na.rm = TRUE)
+terrain_class[idx] <- 3
+
+# Rule 4
+idx <- which(slope_back[] > 1.7 & elev_resampled[] < 200)
+reclass_counts["rule4"] <- sum(terrain_class[][idx] != 2, na.rm = TRUE)
+terrain_class[idx] <- 2
+
+# Total % of land tiles affected by each slope rule
+reclass_percents <- round(100 * reclass_counts / total_land, 2)
+
+cat("Reclassifications based on slope rules:\n")
+print(data.frame(Rule = names(reclass_counts),
+                 ChangedTiles = as.vector(reclass_counts),
+                 PercentOfTotal = as.vector(reclass_percents)))
+
+
 
 # Set water where elevation ≤ 0
 #terrain_class[elev_resampled <= 137] <- 0
