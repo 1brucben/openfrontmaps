@@ -1,7 +1,7 @@
 # Load and project rivers (lines + other geom) to elevation CRS
 riversmore <- st_read("./ne_10m_rivers_lake_centerlines_scale_rank/ne_10m_rivers_lake_centerlines_scale_rank.shp")
-#Eliminate smaller rivers
-#riversmore <- riversmore[as.numeric(riversmore$scalerank) < 6, ]
+# Eliminate smaller rivers
+# riversmore <- riversmore[as.numeric(riversmore$scalerank) < 6, ]
 rivers_proj <- st_transform(riversmore, crs(elev_projected))
 # Load and project lakes polygons
 lakes <- st_read("./ne_10m_lakes/ne_10m_lakes.shp")
@@ -73,7 +73,7 @@ river_mask <- river_rast == 1
 blue <- blue_base
 alpha <- alpha_base
 blue[river_mask[]] <- 106
-alpha[river_mask[]] <- 0  
+alpha[river_mask[]] <- 0
 
 # Add glaciers as mountains (e.g. darker blue and opaque)
 glacier_vect <- vect(st_transform(glaciers_clipped, crs(terrain_class)))
@@ -85,10 +85,10 @@ alpha[glacier_mask[]] <- 255
 
 
 # ── RGBA stack ──────────────────────────────────────────────────────────────
-r_rast <- setValues(rast(terrain_class), 0)   # red   – all zero
-g_rast <- r_rast                              # green – all zero
-b_rast <- blue                                # blue  – the raster we computed
-a_rast <- alpha                               # alpha – 0 or 255
+r_rast <- setValues(rast(terrain_class), 0) # red   – all zero
+g_rast <- r_rast # green – all zero
+b_rast <- blue # blue  – the raster we computed
+a_rast <- alpha # alpha – 0 or 255
 
 rgba_stack <- c(r_rast, g_rast, b_rast, a_rast)
 names(rgba_stack) <- c("red", "green", "blue", "alpha")
