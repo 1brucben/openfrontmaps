@@ -138,15 +138,6 @@ terrain_class <- ifel(
 # Set water where elevation ≤ 0
 # terrain_class[elev_resampled <= 137] <- 0
 
-# Get raw elevation values
-elev_vals <- values(elev_resampled)
-tc_vals <- values(terrain_class)
-
-# Initialize magnitude and blue
-mag <- numeric(ncell(terrain_class))
-blue <- numeric(ncell(terrain_class))
-alpha <- numeric(ncell(terrain_class))
-
 # helper to clamp a raster at an upper bound (a tad faster than pmin)
 clamp_upper <- function(x, upper) terra::clamp(x, lower = -Inf, upper = upper)
 
@@ -177,12 +168,10 @@ mag <- ifel(
 blue <- 140 + 2 * mag
 alpha <- ifel(is.na(terrain_class), 0, 255)
 
-rgb_stack <- c(
-  setValues(terrain_class, 0), # red   (all zero)
-  setValues(terrain_class, 0), # green (all zero)
-  blue,
-  alpha
-)
+r_zero <- setValues(rast(terrain_class), 0)
+
+rgb_stack <- c(r_zero, r_zero, blue, alpha)
+
 names(rgb_stack) <- c("red", "green", "blue", "alpha")
 
 
