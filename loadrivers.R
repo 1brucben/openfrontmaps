@@ -1,6 +1,7 @@
 # Load and project rivers (lines + other geom) to elevation CRS
 riversmore <- st_read("./ne_10m_rivers_lake_centerlines_scale_rank/ne_10m_rivers_lake_centerlines_scale_rank.shp")
-riversmore <- riversmore[as.numeric(riversmore$scalerank) < 7, ]
+#Eliminate smaller rivers
+riversmore <- riversmore[as.numeric(riversmore$scalerank) < 6, ]
 rivers_proj <- st_transform(riversmore, crs(elev_projected))
 # Load and project lakes polygons
 lakes <- st_read("./ne_10m_lakes/ne_10m_lakes.shp")
@@ -84,8 +85,8 @@ alpha[glacier_mask[]] <- 255
 
 
 # Assemble RGBA stack
-r_rast <- setValues(rast(terrain_class), 0)
-g_rast <- setValues(rast(terrain_class), 0)
+r_rast <- setValues(rast(terrain_class), blue)
+g_rast <- setValues(rast(terrain_class), blue)
 b_rast <- setValues(rast(terrain_class), blue)
 a_rast <- setValues(rast(terrain_class), alpha)
 rgba_stack <- rast(list(r_rast, g_rast, b_rast, a_rast))
