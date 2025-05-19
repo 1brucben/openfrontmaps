@@ -135,14 +135,6 @@ terrain_class <- ifel(
   )
 )
 
-
-cat("Reclassifications based on slope rules:\n")
-print(data.frame(
-  Rule           = names(reclass_counts),
-  ChangedTiles   = as.vector(reclass_counts),
-  PercentOfTotal = as.vector(reclass_percents)
-))
-
 # Set water where elevation ≤ 0
 # terrain_class[elev_resampled <= 137] <- 0
 
