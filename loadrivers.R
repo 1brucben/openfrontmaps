@@ -2,28 +2,31 @@
 riversmore <- st_read("./ne_10m_rivers_lake_centerlines_scale_rank/ne_10m_rivers_lake_centerlines_scale_rank.shp")
 # Eliminate smaller rivers
 # riversmore <- riversmore[as.numeric(riversmore$scalerank) < 6, ]
-rivers_proj <- st_transform(riversmore, crs(elev_projected))
+rivers_proj <- st_transform(riversmore, crs(elev_resampled))
 # Load and project lakes polygons
 lakes <- st_read("./ne_10m_lakes/ne_10m_lakes.shp")
-lakes_proj <- st_transform(lakes, crs(elev_projected))
+lakes_proj <- st_transform(lakes, crs(elev_resampled))
 
 # Load and project ocean polygons
 oceans <- st_read("./ne_10m_ocean/ne_10m_ocean.shp")
-oceans_proj <- st_transform(oceans, crs(elev_projected))
+oceans_proj <- st_transform(oceans, crs(elev_resampled))
 # Load and project glaciated areas
 glaciers <- st_read("./ne_10m_glaciated_areas/ne_10m_glaciated_areas.shp")
-glaciers_proj <- st_transform(glaciers, crs(elev_projected))
+glaciers_proj <- st_transform(glaciers, crs(elev_resampled))
 
 # Define terrain extent polygon for clipping
-terrain_extent <- as.polygons(ext(elev_projected), crs = crs(elev_projected))
+terrain_extent <- as.polygons(ext(elev_resampled), crs = crs(elev_resampled))
 
 # Clip all water-related features to terrain extent
 rivers_clipped <- st_intersection(rivers_proj, st_as_sf(terrain_extent))
-lakes_clipped <- st_intersection(lakes_proj, st_as_sf(terrain_extent))
-oceans_clipped <- st_intersection(oceans_proj, st_as_sf(terrain_extent))
+old_s2 <- sf::sf_use_s2(FALSE) # ❶ flip to GEOS (tolerant)
 
-# Clip glaciers to terrain extent
-glaciers_clipped <- st_intersection(glaciers_proj, st_as_sf(terrain_extent))
+terrain_poly <- st_as_sf(terrain_extent) # already in lon/lat
+lakes_clipped <- st_intersection(lakes_proj, terrain_poly)
+oceans_clipped <- st_intersection(oceans_proj, terrain_poly)
+glaciers_clipped <- st_intersection(glaciers_proj, terrain_poly)
+
+sf::sf_use_s2(old_s2)
 
 # Separate rivers lines from other geometries
 geom_type <- st_geometry_type(rivers_clipped)
@@ -32,7 +35,7 @@ others <- rivers_clipped[geom_type %in% c("POLYGON", "MULTIPOLYGON", "POINT", "M
 
 # Compute buffer distances based on stroke weight
 strokeweig <- as.numeric(lines_only$strokeweig)
-base_res <- mean(res(elev_projected))
+base_res <- mean(res(elev_resampled))
 buffer_distances <- base_res * (strokeweig / max(strokeweig, na.rm = TRUE)) * 1
 
 # Buffer only line geometries (rivers)
