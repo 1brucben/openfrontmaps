@@ -1,7 +1,7 @@
 # Load and project rivers (lines + other geom) to elevation CRS
 riversmore <- st_read("./ne_10m_rivers_lake_centerlines_scale_rank/ne_10m_rivers_lake_centerlines_scale_rank.shp")
 #Eliminate smaller rivers
-riversmore <- riversmore[as.numeric(riversmore$scalerank) < 6, ]
+#riversmore <- riversmore[as.numeric(riversmore$scalerank) < 6, ]
 rivers_proj <- st_transform(riversmore, crs(elev_projected))
 # Load and project lakes polygons
 lakes <- st_read("./ne_10m_lakes/ne_10m_lakes.shp")
@@ -33,7 +33,7 @@ others <- rivers_clipped[geom_type %in% c("POLYGON", "MULTIPOLYGON", "POINT", "M
 # Compute buffer distances based on stroke weight
 strokeweig <- as.numeric(lines_only$strokeweig)
 base_res <- mean(res(elev_projected))
-buffer_distances <- base_res * (strokeweig / max(strokeweig, na.rm = TRUE)) * 10
+buffer_distances <- base_res * (strokeweig / max(strokeweig, na.rm = TRUE)) * 1
 
 # Buffer only line geometries (rivers)
 lines_buffered <- mapply(
@@ -84,12 +84,13 @@ blue[glacier_mask[]] <- 198
 alpha[glacier_mask[]] <- 255
 
 
-# Assemble RGBA stack
-r_rast <- setValues(rast(terrain_class), blue)
-g_rast <- setValues(rast(terrain_class), blue)
-b_rast <- setValues(rast(terrain_class), blue)
-a_rast <- setValues(rast(terrain_class), alpha)
-rgba_stack <- rast(list(r_rast, g_rast, b_rast, a_rast))
+# ── RGBA stack ──────────────────────────────────────────────────────────────
+r_rast <- setValues(rast(terrain_class), 0)   # red   – all zero
+g_rast <- r_rast                              # green – all zero
+b_rast <- blue                                # blue  – the raster we computed
+a_rast <- alpha                               # alpha – 0 or 255
+
+rgba_stack <- c(r_rast, g_rast, b_rast, a_rast)
 names(rgba_stack) <- c("red", "green", "blue", "alpha")
 
 # Export final terrain + water PNG with compression

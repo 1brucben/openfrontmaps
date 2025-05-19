@@ -9,7 +9,7 @@ install_if_missing <- function(p) {
 invisible(lapply(pkgs, install_if_missing))
 invisible(lapply(pkgs, library, character.only = TRUE))
 start_time <- proc.time()
-coord_str <- "-91.7,-56.6,-31.1,24.1"
+coord_str <- "5.5,44.0,15.0,48"
 coords <- as.numeric(strsplit(coord_str, ",")[[1]])
 
 xmin <- coords[1]
@@ -18,7 +18,7 @@ xmax <- coords[3]
 ymax <- coords[4]
 
 total_pixels <- 4000000 # e.g. 4 million
-zoom <- 6 # 7 should be fine for most regions... raise if region is really small
+zoom <- 8 # 7 should be fine for most regions... raise if region is really small
 output_file <- "terrain_map.png"
 
 # Define bounding box
@@ -32,7 +32,7 @@ region_sf <- st_sf(geometry = region_geom)
 
 
 
-elev_raster <- get_elev_raster(locations = region_sf, z = zoom, clip = "bbox")
+elev_raster <- get_elev_raster(locations = region_sf, z = zoom, clip = "bbox", source = "aws")
 
 writeRaster(rast(elev_raster), "elevation_raw.tif", overwrite = TRUE)
 elev_terra <- rast(elev_raster)
@@ -68,70 +68,69 @@ target_rast <- rast(nrows = pixel_height, ncols = pixel_width, extent = ext(elev
 # Resample
 elev_resampled <- resample(elev_terra, target_rast, method = "bilinear")
 
-# Define the projection string for Plate Carrée (Equirectangular) projection
-plate_carre_proj <- "+proj=eqc +lat_ts=0 +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"
-
-# Project the elevation raster to Plate Carrée
-elev_projected <- project(elev_terra, plate_carre_proj)
-
-# Now slope calculation will be accurate
-slope_rast <- terrain(elev_projected, v = "slope", unit = "degrees")
+#slope calc
+slope_rast <- terrain(elev_resampled, v = "slope", unit = "degrees")
 
 
-# start with terrain based on elevation
-terrain_class <- classify(elev_resampled, matrix(c(
-  -Inf, 180, 1, # Plains
-  180, 2600, 2, # Highlands
-  2600, Inf, 3 # Mountains
-), ncol = 3, byrow = TRUE))
-# Count initial classification from elevation
-tc_vals_initial <- values(terrain_class)
-total_land <- sum(!is.na(tc_vals_initial))
+## --- starting point ----------------------------------------------------
+terrain_initial <- classify(elev_resampled,
+                            rbind(c(-Inf,120,1),
+                                  c(120,1900,2),
+                                  c(1900,Inf,3)))
 
-initial_counts <- table(tc_vals_initial, useNA = "ifany")
-initial_percents <- round(100 * initial_counts / total_land, 2)
+init_freq <- as.data.frame(freq(terrain_initial, digits = 0), useNA = "no")
+total_land <- sum(init_freq$count)          # all non-NA cells
+init_freq$percent <- round(100 * init_freq$count / total_land, 2)
 
-cat("Initial classification (elevation-based):\n")
-print(data.frame(Class = names(initial_counts),
-                 Count = as.vector(initial_counts),
-                 Percent = as.vector(initial_percents)))
+cat("Initial elevation-based classes:\n")
+print(init_freq)
+
+ti <- terrain_initial         
+        
+rule1 <-  slope_rast <  .55 & elev_resampled < 1000
+rule2 <- !rule1 & (slope_rast <   4 & elev_resampled > 2000)
+rule3 <- !rule1 & !rule2 & (slope_rast >  12)
+rule4 <- !rule1 & !rule2 & !rule3 &
+         (slope_rast > 1.3 & elev_resampled < 200)
+
+chg1 <- rule1 & ti != 1
+chg2 <- rule2 & ti != 2
+chg3 <- rule3 & ti != 3
+chg4 <- rule4 & ti != 2      
 
 
-# Project slope back to match terrain_class grid
-slope_back <- project(slope_rast, terrain_class)
-# Now safe to use in logical assignment
-# Track reclassifications
-reclass_counts <- c(rule1 = 0, rule2 = 0, rule3 = 0, rule4 = 0)
+reclass_counts <- sapply(
+  list(chg1, chg2, chg3, chg4),
+  function(m) global(m, "sum", na.rm = TRUE)[[1]]
+)
+names(reclass_counts) <- paste0("rule", 1:4)
 
-# Rule 1
-idx <- which(slope_back[] < .5 & elev_resampled[] < 1000)
-reclass_counts["rule1"] <- sum(terrain_class[][idx] != 1, na.rm = TRUE)
-terrain_class[idx] <- 1
+reclass_perc <- round(100 * reclass_counts /
+                      global(!is.na(ti), "sum", na.rm = TRUE)[[1]], 2)
 
-# Rule 2
-idx <- which(slope_back[] < 2 & elev_resampled[] > 2400)
-reclass_counts["rule2"] <- sum(terrain_class[][idx] != 2, na.rm = TRUE)
-terrain_class[idx] <- 2
+cat("Tiles that *changed* because of each slope rule:\n")
+print(data.frame(
+  Rule           = names(reclass_counts),
+  ChangedTiles   = reclass_counts,
+  PercentOfTotal = reclass_perc
+))
 
-# Rule 3
-idx <- which(slope_back[] > 4)
-reclass_counts["rule3"] <- sum(terrain_class[][idx] != 3, na.rm = TRUE)
-terrain_class[idx] <- 3
 
-# Rule 4
-idx <- which(slope_back[] > 1.7 & elev_resampled[] < 200)
-reclass_counts["rule4"] <- sum(terrain_class[][idx] != 2, na.rm = TRUE)
-terrain_class[idx] <- 2
+## --- combined reclassification (fast, one pass) ------------------------
+terrain_class <- ifel(
+  rule1, 1,
+  ifel(rule2, 2,
+  ifel(rule3, 3,
+  ifel(rule4, 2,
+       terrain_initial))))
 
-# Total % of land tiles affected by each slope rule
-reclass_percents <- round(100 * reclass_counts / total_land, 2)
 
 cat("Reclassifications based on slope rules:\n")
-print(data.frame(Rule = names(reclass_counts),
-                 ChangedTiles = as.vector(reclass_counts),
-                 PercentOfTotal = as.vector(reclass_percents)))
-
-
+print(data.frame(
+  Rule           = names(reclass_counts),
+  ChangedTiles   = as.vector(reclass_counts),
+  PercentOfTotal = as.vector(reclass_percents)
+))
 
 # Set water where elevation ≤ 0
 #terrain_class[elev_resampled <= 137] <- 0
@@ -145,52 +144,39 @@ mag <- numeric(ncell(terrain_class))
 blue <- numeric(ncell(terrain_class))
 alpha <- numeric(ncell(terrain_class))
 
-for (i in seq_along(tc_vals)) {
-  t <- tc_vals[i]
-  elev <- elev_vals[i]
+# helper to clamp a raster at an upper bound (a tad faster than pmin)
+clamp_upper <- function(x, upper) terra::clamp(x, lower=-Inf, upper=upper)
 
-  if (is.na(t) || is.na(elev)) {
-    mag[i] <- 0
-    blue[i] <- 0
-    alpha[i] <- 0
-    next
-  }
+# start with an empty (all-NA) raster that shares the grid
+mag <- setValues(elev_resampled, NA_real_)
 
-  if (t == 0) {
-    # Water
-    blue[i] <- 106
-    alpha[i] <- 0
-    next
-  }
+# plains
+mag <- ifel(terrain_class == 1,
+            1  + 7 * clamp_upper(elev_resampled/120, 1),
+            mag)
 
-  alpha[i] <- 255
+# highlands
+mag <- ifel(terrain_class == 2,
+            11 + 7 * clamp_upper((elev_resampled-120)/880, 1),
+            mag)
 
-  if (t == 1) {
-    # Plains: 0–200 m → mag 1–9
-    mag[i] <- 1 + 7 * min(1, elev / 200)
-  } else if (t == 2) {
-    # Highlands: 200–1000 m → mag 11–19
-    mag[i] <- 11 + 7 * min(1, (elev - 200) / 800)
-  } else if (t == 3) {
-    # Mountains: 1000–3000 m → mag 21–29
-    mag[i] <- 21 + 7 * min(1, (elev - 1000) / 2000)
-  }
+# mountains
+mag <- ifel(terrain_class == 3,
+            21 + 7 * clamp_upper((elev_resampled-1000)/2000, 1),
+            mag)
 
-  blue[i] <- 140 + 2 * mag[i]
-  #blue[i] <- max(0, blue[i])
+blue  <- 140 + 2 * mag
+alpha <- ifel(is.na(terrain_class), 0, 255)
 
-}
+rgb_stack <- c(
+  setValues(terrain_class, 0),   # red   (all zero)
+  setValues(terrain_class, 0),   # green (all zero)
+  blue,
+  alpha
+)
+names(rgb_stack) <- c("red", "green", "blue", "alpha")
 
-r <- rep(0, length(blue))
-g <- rep(0, length(blue))
 
-r_rast <- setValues(rast(terrain_class), r)
-g_rast <- setValues(rast(terrain_class), g)
-b_rast <- setValues(rast(terrain_class), blue)
-a_rast <- setValues(rast(terrain_class), alpha)
-
-rgba_stack <- rast(list(r_rast, g_rast, b_rast, a_rast))
-names(rgba_stack) <- c("red", "green", "blue", "alpha")
 
 blue_base <- blue
 alpha_base <- alpha
